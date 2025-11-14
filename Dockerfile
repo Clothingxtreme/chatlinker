@@ -2,30 +2,28 @@
 FROM node:20-bullseye-slim AS builder
 WORKDIR /app
 
-# Copy manifests and install ALL deps (dev + prod) for building
+# 1) Install deps (dev + prod) once
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
-# Build
+# 2) Build TS -> JS
 COPY tsconfig*.json ./
 COPY src ./src
 RUN npm run build
+
+# 3) Remove dev deps so the final image is lean
+RUN npm prune --omit=dev
 
 # ---------- Runtime stage ----------
 FROM node:20-bullseye-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ENV PORT=5000
 
-# Only prod deps in final image
+# Copy pruned production deps and compiled code
+COPY --from=builder /app/node_modules ./node_modules
 COPY package*.json ./
-RUN npm install --omit=dev --legacy-peer-deps
-
-# Bring compiled code
 COPY --from=builder /app/dist ./dist
 
-# App port
-ENV PORT=5000
 EXPOSE 5000
-
-# Mod
 CMD ["node", "dist/main.js"]
