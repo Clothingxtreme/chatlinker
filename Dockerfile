@@ -9,7 +9,6 @@ RUN npm ci
 # Copy source and build
 COPY tsconfig*.json ./
 COPY src ./src
-COPY .env.example ./.env.example
 RUN npm run build
 
 # ---------- Runtime stage ----------
