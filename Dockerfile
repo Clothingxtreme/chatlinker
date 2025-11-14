@@ -1,33 +1,31 @@
 # ---------- Build stage ----------
-FROM node:20-alpine AS builder
+FROM node:20-bullseye-slim AS builder
 WORKDIR /app
 
-# Install build deps first
+# Copy manifests and install ALL deps (dev + prod) for building
 COPY package*.json ./
-RUN npm ci
+RUN npm install --legacy-peer-deps
 
-# Copy source and build
+# Build
 COPY tsconfig*.json ./
 COPY src ./src
 RUN npm run build
 
 # ---------- Runtime stage ----------
-FROM node:20-alpine AS runner
+FROM node:20-bullseye-slim AS runner
 WORKDIR /app
+ENV NODE_ENV=production
 
-# Only production deps
+# Only prod deps in final image
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev --legacy-peer-deps
 
-# Copy built dist and any runtime assets
+# Bring compiled code
 COPY --from=builder /app/dist ./dist
 
-# Expose Nest port
+# App port
 ENV PORT=5000
 EXPOSE 5000
 
-# Health path for Northflank
-ENV HEALTHCHECK_PATH=/api/health
-
-# Start the server
+# Mod
 CMD ["node", "dist/main.js"]
